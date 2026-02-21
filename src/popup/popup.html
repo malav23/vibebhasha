@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lovable Voice Helper</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <header class="popup-header">
+      <div class="logo">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+          <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+          <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+        </svg>
+        <span>Lovable Voice Helper</span>
+      </div>
+    </header>
+
+    <!-- Loading State -->
+    <div id="loading-state" class="loading-state">
+      <div class="spinner"></div>
+      <span>Loading...</span>
+    </div>
+
+    <!-- Login State (Not Authenticated) -->
+    <div id="login-state" class="state-container hidden">
+      <div class="welcome-message">
+        <h2>Welcome!</h2>
+        <p>Sign in to start using voice input with Lovable.dev</p>
+      </div>
+
+      <div class="features-list">
+        <div class="feature-item">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <span>Speak in 18+ languages</span>
+        </div>
+        <div class="feature-item">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <span>Auto-translate to English</span>
+        </div>
+        <div class="feature-item">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <span>AI-optimized prompts</span>
+        </div>
+      </div>
+
+      <button id="google-signin-btn" class="google-signin-btn">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+        </svg>
+        <span>Sign in with Google</span>
+      </button>
+
+      <p class="terms-text">
+        By signing in, you agree to our
+        <a href="#" id="privacy-link">Privacy Policy</a>
+      </p>
+    </div>
+
+    <!-- Dashboard State (Authenticated) -->
+    <div id="dashboard-state" class="state-container hidden">
+      <!-- User Info -->
+      <div class="user-info">
+        <img id="user-avatar" src="" alt="Avatar" class="user-avatar">
+        <div class="user-details">
+          <span id="user-name" class="user-name"></span>
+          <span id="user-email" class="user-email"></span>
+        </div>
+      </div>
+
+      <!-- Usage Stats -->
+      <div class="usage-section">
+        <h3>Today's Usage</h3>
+        <div class="usage-bar-container">
+          <div class="usage-bar">
+            <div id="usage-progress" class="usage-progress" style="width: 0%"></div>
+          </div>
+          <span id="usage-text" class="usage-text">0 / 5 prompts</span>
+        </div>
+        <p class="usage-note">Resets at midnight UTC</p>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="quick-actions">
+        <div class="action-item">
+          <span class="action-label">Keyboard Shortcut</span>
+          <span class="action-value" id="shortcut-display">Ctrl+Shift+I</span>
+        </div>
+        <div class="action-item">
+          <span class="action-label">Preferred Language</span>
+          <select id="language-select" class="language-select">
+            <!-- Populated by JavaScript -->
+          </select>
+        </div>
+      </div>
+
+      <!-- Upgrade Banner (Free Tier) -->
+      <div id="upgrade-banner" class="upgrade-banner hidden">
+        <span>Upgrade to Pro for unlimited prompts</span>
+        <button id="upgrade-btn" class="upgrade-btn">Upgrade</button>
+      </div>
+
+      <!-- Footer Actions -->
+      <div class="footer-actions">
+        <button id="options-btn" class="text-btn">Settings</button>
+        <button id="signout-btn" class="text-btn">Sign Out</button>
+      </div>
+    </div>
+
+    <!-- Error State -->
+    <div id="error-state" class="state-container hidden">
+      <div class="error-icon">
+        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+      </div>
+      <p id="error-message" class="error-message">Something went wrong</p>
+      <button id="retry-btn" class="retry-btn">Try Again</button>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

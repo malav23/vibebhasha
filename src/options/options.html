@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lovable Voice Helper - Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="options-container">
+    <!-- Header -->
+    <header class="options-header">
+      <div class="header-content">
+        <div class="logo">
+          <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
+            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+          </svg>
+          <div class="logo-text">
+            <h1>Lovable Voice Helper</h1>
+            <span class="version" id="version">v1.0.0</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="options-main">
+      <!-- Not Authenticated Warning -->
+      <div id="auth-warning" class="auth-warning hidden">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <span>You're not signed in. <a href="#" id="signin-link">Sign in</a> to use the extension.</span>
+      </div>
+
+      <!-- Settings Sections -->
+      <section class="settings-section">
+        <h2>Language Settings</h2>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <label for="preferred-language">Preferred Language</label>
+            <p class="setting-description">
+              Default language for voice input. The extension will auto-detect, but this helps improve accuracy.
+            </p>
+          </div>
+          <select id="preferred-language" class="select-input">
+            <!-- Populated by JavaScript -->
+          </select>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h2>Recording Settings</h2>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <label for="auto-stop">Auto-stop Recording</label>
+            <p class="setting-description">
+              Automatically stop recording after this many seconds of silence.
+            </p>
+          </div>
+          <select id="auto-stop" class="select-input">
+            <option value="0">Disabled</option>
+            <option value="2">2 seconds</option>
+            <option value="3" selected>3 seconds</option>
+            <option value="5">5 seconds</option>
+          </select>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <label for="max-duration">Maximum Recording Duration</label>
+            <p class="setting-description">
+              Maximum length of a single voice recording.
+            </p>
+          </div>
+          <select id="max-duration" class="select-input">
+            <option value="30">30 seconds</option>
+            <option value="60" selected>60 seconds</option>
+            <option value="120">2 minutes</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h2>Keyboard Shortcuts</h2>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <label>Start/Stop Recording</label>
+            <p class="setting-description">
+              Press this shortcut to toggle voice recording on lovable.dev.
+            </p>
+          </div>
+          <div class="shortcut-display">
+            <kbd id="shortcut-key">Ctrl</kbd>
+            <span>+</span>
+            <kbd>Shift</kbd>
+            <span>+</span>
+            <kbd>I</kbd>
+          </div>
+        </div>
+
+        <p class="shortcut-note">
+          To change shortcuts, go to <a href="#" id="shortcuts-link">chrome://extensions/shortcuts</a>
+        </p>
+      </section>
+
+      <section class="settings-section">
+        <h2>Prompt Enhancement</h2>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <label for="default-objective">Default Objective</label>
+            <p class="setting-description">
+              Pre-select this objective when the confirmation dialog opens.
+            </p>
+          </div>
+          <select id="default-objective" class="select-input">
+            <option value="new_feature" selected>Create new feature</option>
+            <option value="bug_fix">Fix a bug</option>
+            <option value="design_improvement">Improve design</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <label for="auto-insert">Auto-insert Prompt</label>
+            <p class="setting-description">
+              Skip the preview step and automatically insert the elaborated prompt.
+            </p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="auto-insert">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h2>Account</h2>
+
+        <div id="account-info" class="account-info">
+          <img id="user-avatar" src="" alt="Avatar" class="user-avatar">
+          <div class="user-details">
+            <span id="user-name" class="user-name">Not signed in</span>
+            <span id="user-email" class="user-email"></span>
+          </div>
+        </div>
+
+        <div id="subscription-info" class="subscription-info hidden">
+          <div class="plan-badge free">Free Plan</div>
+          <span class="plan-details">5 prompts per day</span>
+          <button id="upgrade-btn" class="upgrade-btn">Upgrade to Pro</button>
+        </div>
+
+        <div class="account-actions">
+          <button id="signout-btn" class="danger-btn hidden">Sign Out</button>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h2>About</h2>
+
+        <div class="about-links">
+          <a href="https://lovable-voice-helper.com" target="_blank">Website</a>
+          <a href="https://lovable-voice-helper.com/privacy" target="_blank">Privacy Policy</a>
+          <a href="https://lovable-voice-helper.com/terms" target="_blank">Terms of Service</a>
+          <a href="mailto:support@lovable-voice-helper.com">Contact Support</a>
+        </div>
+
+        <p class="copyright">
+          © 2024 Lovable Voice Helper. Not affiliated with Lovable.dev.
+        </p>
+      </section>
+    </main>
+
+    <!-- Save Status Toast -->
+    <div id="save-toast" class="save-toast hidden">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+      <span>Settings saved</span>
+    </div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
