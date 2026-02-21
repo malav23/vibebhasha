@@ -3,9 +3,9 @@ export * from './languages';
 export * from './prompts';
 export * from './confirmation-ui';
 
-// API endpoints
-export const SUPABASE_URL = 'https://ugwhgbsprbwgdkggekpw.supabase.co';
-export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnd2hnYnNwcmJ3Z2RrZ2dla3B3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1ODY1MDQsImV4cCI6MjA4NzE2MjUwNH0.Pt-Dx-jlsvJEq3VywLyJyoz2Bt-Y2EKVEHr_48UGKUM';
+// API endpoints (injected at build time via .env)
+export const SUPABASE_URL = process.env.SUPABASE_URL!;
+export const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY!;
 
 // Edge function endpoints
 export const EDGE_FUNCTIONS = {

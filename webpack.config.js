@@ -1,6 +1,8 @@
 const path = require('path');
+const webpack = require('webpack');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+require('dotenv').config();
 
 module.exports = (env, argv) => {
   const isProduction = argv.mode === 'production';
@@ -47,12 +49,25 @@ module.exports = (env, argv) => {
     },
 
     plugins: [
+      new webpack.DefinePlugin({
+        'process.env.SUPABASE_URL': JSON.stringify(process.env.SUPABASE_URL),
+        'process.env.SUPABASE_ANON_KEY': JSON.stringify(process.env.SUPABASE_ANON_KEY),
+        'process.env.GOOGLE_OAUTH_CLIENT_ID': JSON.stringify(process.env.GOOGLE_OAUTH_CLIENT_ID),
+      }),
       new MiniCssExtractPlugin({
         filename: '[name].css',
       }),
       new CopyWebpackPlugin({
         patterns: [
-          { from: 'manifest.json', to: 'manifest.json' },
+          {
+            from: 'manifest.json',
+            to: 'manifest.json',
+            transform(content) {
+              return content
+                .toString()
+                .replace('__GOOGLE_OAUTH_CLIENT_ID__', process.env.GOOGLE_OAUTH_CLIENT_ID || '');
+            },
+          },
           { from: 'src/popup/popup.html', to: 'popup.html' },
           { from: 'src/options/options.html', to: 'options.html' },
           { from: 'src/popup/popup.css', to: 'popup.css' },
