@@ -1,7 +1,7 @@
 import { signInWithGoogle, signOut, isAuthenticated, getSession } from './google-auth';
 import { initSessionManager } from './session-manager';
 import { checkUsageLimit, recordUsage, clearUsageCache } from './usage-limiter';
-import { transcribeAudio, translateAndElaborate, estimateTokens } from './openai-service';
+import { transcribeAudio, translateAndElaborate, estimateTokens } from './gemini-service';
 import {
   ExtensionMessage,
   TranscriptionResponse,

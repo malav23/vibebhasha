@@ -7,7 +7,7 @@ Millions of developers worldwide think and communicate in languages other than E
 ## Flow
 
 ```
-Speak in your language -> Whisper transcribes -> Review & edit -> Select objective -> GPT translates & elaborates -> Preview -> Insert into Lovable
+Speak in your language -> Gemini transcribes -> Review & edit -> Select objective -> Gemini translates & elaborates -> Preview -> Insert into Lovable
 ```
 
 ## Features
@@ -66,8 +66,8 @@ npm run build
 | Layer | Technology |
 |-------|------------|
 | Extension | Chrome Manifest V3, TypeScript, Webpack |
-| Speech-to-Text | OpenAI Whisper API |
-| Translation | OpenAI GPT-4o-mini |
+| Speech-to-Text | Google Gemini 2.0 Flash |
+| Translation | Google Gemini 2.0 Flash |
 | Backend | Supabase (PostgreSQL, Edge Functions, Auth) |
 | Auth | Google OAuth 2.0 |
 

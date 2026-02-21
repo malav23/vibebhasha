@@ -127,6 +127,6 @@ export function getBase64FileSize(base64: string): number {
 export const MAX_AUDIO_DURATION_SECONDS = 60;
 
 /**
- * Maximum allowed file size in bytes (25MB - Whisper API limit)
+ * Maximum allowed file size in bytes (20MB - Gemini API limit)
  */
-export const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
+export const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;

@@ -25,7 +25,7 @@ export class AudioRecorder {
       this.stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 1,
-          sampleRate: 16000, // Optimal for Whisper
+          sampleRate: 16000, // Optimal for speech recognition
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,

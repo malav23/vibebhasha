@@ -20,7 +20,7 @@ export interface UserSession {
   };
 }
 
-// Transcription result from Whisper API
+// Transcription result from Gemini API
 export interface TranscriptionResult {
   text: string;
   language: LanguageCode;
@@ -159,7 +159,7 @@ export interface LanguageInfo {
   code: LanguageCode;
   name: string;
   nativeName: string;
-  whisperSupport: 'full' | 'limited';
+  speechSupport: 'full' | 'limited';
 }
 
 // Confirmation UI strings for a single language

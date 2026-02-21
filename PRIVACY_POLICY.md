@@ -20,7 +20,7 @@ This information is used to identify your account and personalize your experienc
 When you use the voice input feature:
 - Audio is recorded locally in your browser
 - Audio is transmitted to our servers for transcription
-- Audio is processed by OpenAI's Whisper API
+- Audio is processed by Google's Gemini API
 - **Audio is NOT stored permanently** - it is deleted after transcription
 
 ### Transcribed Text
@@ -60,10 +60,10 @@ This is used for:
 
 ## Third-Party Services
 
-### OpenAI
-- Audio is sent to OpenAI's Whisper API for transcription
-- Text is sent to OpenAI's GPT API for translation and elaboration
-- OpenAI's privacy policy applies: https://openai.com/privacy
+### Google Gemini
+- Audio is sent to Google's Gemini API for transcription
+- Text is sent to Google's Gemini API for translation and elaboration
+- Google's AI privacy policy applies: https://ai.google.dev/terms
 
 ### Google
 - We use Google OAuth for authentication

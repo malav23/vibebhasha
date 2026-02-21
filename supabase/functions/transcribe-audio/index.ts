@@ -70,48 +70,92 @@ serve(async (req) => {
       );
     }
 
-    // Validate file size (25MB max for Whisper)
-    const maxSize = 25 * 1024 * 1024;
+    // Validate file size (20MB max for Gemini inline data)
+    const maxSize = 20 * 1024 * 1024;
     if (audioFile.size > maxSize) {
       return new Response(
-        JSON.stringify({ error: 'Audio file too large (max 25MB)' }),
+        JSON.stringify({ error: 'Audio file too large (max 20MB)' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Call Whisper API
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openaiApiKey) {
-      console.error('OpenAI API key not configured');
+    // Get Gemini API key
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    if (!geminiApiKey) {
+      console.error('Gemini API key not configured');
       return new Response(
         JSON.stringify({ error: 'Service configuration error' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const whisperFormData = new FormData();
-    whisperFormData.append('file', audioFile, 'recording.webm');
-    whisperFormData.append('model', 'whisper-1');
-    whisperFormData.append('response_format', 'verbose_json');
+    // Convert audio file to base64 for Gemini
+    const audioBytes = await audioFile.arrayBuffer();
+    const audioBase64 = btoa(String.fromCharCode(...new Uint8Array(audioBytes)));
 
-    const whisperResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-      },
-      body: whisperFormData,
-    });
+    // Determine MIME type
+    const mimeType = audioFile.type || 'audio/webm';
 
-    if (!whisperResponse.ok) {
-      const errorData = await whisperResponse.json().catch(() => ({}));
-      console.error('Whisper API error:', errorData);
+    // Call Gemini API for transcription
+    const geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: mimeType,
+                    data: audioBase64,
+                  },
+                },
+                {
+                  text: 'Transcribe this audio exactly as spoken. Return ONLY the transcribed text, nothing else. Also detect the language and include it as a JSON response in this format: {"text": "transcribed text here", "language": "language code like hi, bn, ta, es, de, zh etc"}',
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 2048,
+          },
+        }),
+      }
+    );
+
+    if (!geminiResponse.ok) {
+      const errorData = await geminiResponse.json().catch(() => ({}));
+      console.error('Gemini API error:', errorData);
       return new Response(
         JSON.stringify({ error: 'Transcription failed', details: errorData }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const whisperResult = await whisperResponse.json();
+    const geminiResult = await geminiResponse.json();
+    const responseText = geminiResult.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    // Parse the JSON response from Gemini
+    let transcribedText = responseText;
+    let detectedLanguage = 'en';
+
+    try {
+      // Try to extract JSON from the response
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        transcribedText = parsed.text || responseText;
+        detectedLanguage = parsed.language || 'en';
+      }
+    } catch {
+      // If JSON parsing fails, use the raw text
+      transcribedText = responseText;
+    }
 
     // Increment usage counter
     const { error: incrementError } = await supabase.rpc('increment_usage', {
@@ -120,15 +164,14 @@ serve(async (req) => {
 
     if (incrementError) {
       console.error('Failed to increment usage:', incrementError);
-      // Don't fail the request, just log the error
     }
 
     // Return transcription result
     return new Response(
       JSON.stringify({
-        text: whisperResult.text,
-        language: whisperResult.language,
-        duration: whisperResult.duration,
+        text: transcribedText,
+        language: detectedLanguage,
+        duration: 0,
         remaining: limitCheck.remaining - 1,
       }),
       {

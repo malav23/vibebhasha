@@ -1,6 +1,6 @@
 # Lovable Voice Helper
 
-A Chrome extension for **Lovable.dev** that enables users to **speak prompts in their native language**. The extension records voice input, transcribes speech using OpenAI Whisper, and translates/elaborates prompts in English for optimal results with Lovable.
+A Chrome extension for **Lovable.dev** that enables users to **speak prompts in their native language**. The extension records voice input, transcribes speech using Google Gemini, and translates/elaborates prompts in English for optimal results with Lovable.
 
 ## Features
 
@@ -13,8 +13,8 @@ A Chrome extension for **Lovable.dev** that enables users to **speak prompts in 
 ## Tech Stack
 
 - **Extension**: Chrome Manifest V3, TypeScript, Webpack
-- **Speech-to-Text**: OpenAI Whisper API
-- **Translation/Elaboration**: OpenAI GPT-4o-mini API
+- **Speech-to-Text**: Google Gemini 2.0 Flash
+- **Translation/Elaboration**: Google Gemini 2.0 Flash
 - **Backend**: Supabase (PostgreSQL, Edge Functions, Google Auth)
 
 ## Installation
@@ -24,7 +24,7 @@ A Chrome extension for **Lovable.dev** that enables users to **speak prompts in 
 - Node.js 18+
 - npm or yarn
 - A Supabase project
-- OpenAI API key
+- Gemini API key
 - Google OAuth credentials
 
 ### Setup
@@ -72,7 +72,7 @@ A Chrome extension for **Lovable.dev** that enables users to **speak prompts in 
 
    Set secrets:
    ```bash
-   supabase secrets set OPENAI_API_KEY=your-openai-key
+   supabase secrets set GEMINI_API_KEY=your-gemini-api-key
    ```
 
 5. **Build the extension**
@@ -127,7 +127,7 @@ lovable-voice-helper/
 
 1. User clicks microphone button on lovable.dev (or presses Ctrl+Shift+I)
 2. Recording modal appears, user speaks in their native language
-3. Audio is sent to Whisper API for transcription
+3. Audio is sent to Gemini API for transcription
 4. Confirmation modal shows transcription in detected language
 5. User selects objective and adds optional context
 6. Text is translated to English and elaborated for Lovable
@@ -137,7 +137,7 @@ lovable-voice-helper/
 ## Supported Languages
 
 ### Indic Languages (14)
-| Code | Language | Whisper Support |
+| Code | Language | Speech Support |
 |------|----------|-----------------|
 | hi | Hindi | Full |
 | bn | Bengali | Full |
@@ -155,7 +155,7 @@ lovable-voice-helper/
 | ks | Kashmiri | Limited |
 
 ### International Languages (4)
-| Code | Language | Whisper Support |
+| Code | Language | Speech Support |
 |------|----------|-----------------|
 | es | Spanish | Full |
 | de | German | Full |

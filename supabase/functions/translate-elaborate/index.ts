@@ -79,8 +79,8 @@ serve(async (req) => {
       );
     }
 
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openaiApiKey) {
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    if (!geminiApiKey) {
       return new Response(
         JSON.stringify({ error: 'Service configuration error' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -90,19 +90,20 @@ serve(async (req) => {
     const languageName = LANGUAGE_NAMES[sourceLanguage] || sourceLanguage;
     const objectiveDesc = OBJECTIVE_DESCRIPTIONS[objective] || 'General development task';
 
-    // Step 1: Translate to English
-    const translateResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a professional translator specializing in translating from ${languageName} to English.
+    // Step 1: Translate to English using Gemini
+    const translateResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: `You are a professional translator specializing in translating from ${languageName} to English.
 
 Your task:
 - Translate the user's spoken text from ${languageName} to English
@@ -110,17 +111,21 @@ Your task:
 - Keep technical terms, code snippets, numbers, and URLs unchanged
 - Handle informal/conversational speech naturally
 - Do NOT add explanations or commentary
-- Return ONLY the English translation`,
+- Return ONLY the English translation
+
+Text to translate:
+${text}`,
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 1024,
           },
-          {
-            role: 'user',
-            content: text,
-          },
-        ],
-        temperature: 0.3,
-        max_tokens: 1024,
-      }),
-    });
+        }),
+      }
+    );
 
     if (!translateResponse.ok) {
       const errorData = await translateResponse.json().catch(() => ({}));
@@ -132,21 +137,22 @@ Your task:
     }
 
     const translateResult = await translateResponse.json();
-    const translatedText = translateResult.choices[0].message.content.trim();
+    const translatedText = translateResult.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
 
-    // Step 2: Elaborate the prompt for Lovable
-    const elaborateResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `You are an expert AI prompt engineer specializing in Lovable.dev, a vibe-coding platform for building web applications.
+    // Step 2: Elaborate the prompt for Lovable using Gemini
+    const elaborateResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: `You are an expert AI prompt engineer specializing in Lovable.dev, a vibe-coding platform for building web applications.
 
 Context from user:
 - Objective: ${objectiveDesc}
@@ -172,17 +178,21 @@ Your task:
 - For bug fixes: clarify expected vs actual behavior
 - For design improvements: mention specific UI/UX considerations
 
-Output: Return ONLY the elaborated prompt, no meta-commentary or explanations.`,
+Output: Return ONLY the elaborated prompt, no meta-commentary or explanations.
+
+Prompt to elaborate:
+${translatedText}`,
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.5,
+            maxOutputTokens: 2048,
           },
-          {
-            role: 'user',
-            content: translatedText,
-          },
-        ],
-        temperature: 0.5,
-        max_tokens: 2048,
-      }),
-    });
+        }),
+      }
+    );
 
     if (!elaborateResponse.ok) {
       const errorData = await elaborateResponse.json().catch(() => ({}));
@@ -194,7 +204,11 @@ Output: Return ONLY the elaborated prompt, no meta-commentary or explanations.`,
     }
 
     const elaborateResult = await elaborateResponse.json();
-    const elaboratedText = elaborateResult.choices[0].message.content.trim();
+    const elaboratedText = elaborateResult.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+
+    // Calculate token usage from Gemini response metadata
+    const translateTokens = translateResult.usageMetadata?.totalTokenCount || 0;
+    const elaborateTokens = elaborateResult.usageMetadata?.totalTokenCount || 0;
 
     // Log usage for analytics (non-blocking)
     supabase.from('usage_logs').insert({
@@ -204,7 +218,7 @@ Output: Return ONLY the elaborated prompt, no meta-commentary or explanations.`,
       additional_context: additionalContext?.substring(0, 500),
       original_text_length: text.length,
       elaborated_text_length: elaboratedText.length,
-      tokens_used: (translateResult.usage?.total_tokens || 0) + (elaborateResult.usage?.total_tokens || 0),
+      tokens_used: translateTokens + elaborateTokens,
     }).then(() => {}).catch(console.error);
 
     // Return result

@@ -3,7 +3,7 @@ import { SUPABASE_URL, EDGE_FUNCTIONS } from '../shared/constants';
 import { TranscriptionResult, ElaborationResult, LanguageCode, ObjectiveType } from '../shared/types';
 
 /**
- * Send audio to Supabase Edge Function for transcription via Whisper API
+ * Send audio to Supabase Edge Function for transcription via Gemini API
  */
 export async function transcribeAudio(audioData: string): Promise<TranscriptionResult> {
   const accessToken = supabaseService.getAccessToken();
@@ -48,7 +48,7 @@ export async function transcribeAudio(audioData: string): Promise<TranscriptionR
 }
 
 /**
- * Send text to Supabase Edge Function for translation and elaboration via GPT API
+ * Send text to Supabase Edge Function for translation and elaboration via Gemini API
  */
 export async function translateAndElaborate(params: {
   text: string;
