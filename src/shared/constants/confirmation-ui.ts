@@ -481,10 +481,10 @@ export const PREVIEW_STRINGS: PreviewUIStrings = {
 };
 
 export const UPGRADE_STRINGS: UpgradeUIStrings = {
-  title: 'Daily Limit Reached',
-  message: 'You have used all 5 free voice prompts for today. Upgrade to Pro for unlimited prompts.',
+  title: 'Free Prompts Used',
+  message: 'You have used all 5 free voice prompts. Upgrade to Pro for unlimited prompts.',
   upgradeButton: 'Upgrade to Pro',
-  dismissButton: 'Maybe Later',
+  dismissButton: 'Not Now',
 };
 
 export function getConfirmationStrings(languageCode: LanguageCode): ConfirmationUIStrings {

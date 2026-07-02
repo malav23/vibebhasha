@@ -1,4 +1,4 @@
-import { UserSession, LanguageCode, ObjectiveType } from '../shared/types';
+import { UserSession, LanguageCode, UserPlan } from '../shared/types';
 import { SUPPORTED_LANGUAGES, ALL_LANGUAGE_CODES } from '../shared/constants/languages';
 import { STORAGE_KEYS } from '../shared/constants';
 
@@ -17,9 +17,11 @@ const userAvatar = document.getElementById('user-avatar') as HTMLImageElement;
 const userName = document.getElementById('user-name')!;
 const userEmail = document.getElementById('user-email')!;
 const subscriptionInfo = document.getElementById('subscription-info')!;
+const planDisplay = document.getElementById('plan-display')!;
+const planDetails = document.getElementById('plan-details')!;
 const upgradeBtn = document.getElementById('upgrade-btn')!;
+const manageSubscription = document.getElementById('manage-subscription');
 const signoutBtn = document.getElementById('signout-btn')!;
-const shortcutKey = document.getElementById('shortcut-key')!;
 const versionDisplay = document.getElementById('version')!;
 
 const saveToast = document.getElementById('save-toast')!;
@@ -40,29 +42,15 @@ let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 document.addEventListener('DOMContentLoaded', init);
 
 async function init(): Promise<void> {
-  // Set version
   versionDisplay.textContent = `v${chrome.runtime.getManifest().version}`;
-
-  // Update keyboard shortcut display for platform
-  const isMac = navigator.platform.toLowerCase().includes('mac');
-  shortcutKey.textContent = isMac ? '⌘' : 'Ctrl';
-
-  // Populate language selector
   populateLanguageSelector();
-
-  // Setup event listeners
   setupEventListeners();
-
-  // Load settings
   await loadSettings();
-
-  // Check auth status
   await checkAuthStatus();
 }
 
 function populateLanguageSelector(): void {
   preferredLanguageSelect.innerHTML = '';
-
   ALL_LANGUAGE_CODES.forEach((code) => {
     const lang = SUPPORTED_LANGUAGES[code];
     const option = document.createElement('option');
@@ -73,25 +61,35 @@ function populateLanguageSelector(): void {
 }
 
 function setupEventListeners(): void {
-  // Settings change listeners
   preferredLanguageSelect.addEventListener('change', () => saveSetting(STORAGE_KEYS.PREFERRED_LANGUAGE, preferredLanguageSelect.value));
   autoStopSelect.addEventListener('change', () => saveSetting(SETTINGS_KEYS.AUTO_STOP, parseInt(autoStopSelect.value)));
   maxDurationSelect.addEventListener('change', () => saveSetting(SETTINGS_KEYS.MAX_DURATION, parseInt(maxDurationSelect.value)));
   defaultObjectiveSelect.addEventListener('change', () => saveSetting(SETTINGS_KEYS.DEFAULT_OBJECTIVE, defaultObjectiveSelect.value));
   autoInsertCheckbox.addEventListener('change', () => saveSetting(SETTINGS_KEYS.AUTO_INSERT, autoInsertCheckbox.checked));
 
-  // Auth links
   signinLink.addEventListener('click', (e) => {
     e.preventDefault();
     openPopup();
   });
 
   signoutBtn.addEventListener('click', handleSignOut);
+
   upgradeBtn.addEventListener('click', () => {
-    chrome.tabs.create({ url: 'https://lovable-voice-helper.com/upgrade' });
+    sendMessage({ type: 'CREATE_CHECKOUT' }).then((response) => {
+      if (response.url) {
+        chrome.tabs.create({ url: response.url });
+      } else {
+        chrome.tabs.create({ url: 'https://vibebhasha.com/pricing' });
+      }
+    });
   });
 
-  // Shortcuts link
+  manageSubscription?.addEventListener('click', (e) => {
+    e.preventDefault();
+    // Open Stripe Customer Portal
+    chrome.tabs.create({ url: 'https://billing.stripe.com/p/login/vibebhasha' });
+  });
+
   shortcutsLink.addEventListener('click', (e) => {
     e.preventDefault();
     chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
@@ -107,27 +105,18 @@ async function loadSettings(): Promise<void> {
     SETTINGS_KEYS.AUTO_INSERT,
   ]);
 
-  // Language
   if (storage[STORAGE_KEYS.PREFERRED_LANGUAGE]) {
     preferredLanguageSelect.value = storage[STORAGE_KEYS.PREFERRED_LANGUAGE];
   }
-
-  // Auto-stop
   if (storage[SETTINGS_KEYS.AUTO_STOP] !== undefined) {
     autoStopSelect.value = storage[SETTINGS_KEYS.AUTO_STOP].toString();
   }
-
-  // Max duration
   if (storage[SETTINGS_KEYS.MAX_DURATION] !== undefined) {
     maxDurationSelect.value = storage[SETTINGS_KEYS.MAX_DURATION].toString();
   }
-
-  // Default objective
   if (storage[SETTINGS_KEYS.DEFAULT_OBJECTIVE]) {
     defaultObjectiveSelect.value = storage[SETTINGS_KEYS.DEFAULT_OBJECTIVE];
   }
-
-  // Auto-insert
   if (storage[SETTINGS_KEYS.AUTO_INSERT] !== undefined) {
     autoInsertCheckbox.checked = storage[SETTINGS_KEYS.AUTO_INSERT];
   }
@@ -139,18 +128,13 @@ async function saveSetting(key: string, value: string | number | boolean): Promi
 }
 
 function showSaveToast(): void {
-  // Clear existing timeout
   if (saveTimeout) {
     clearTimeout(saveTimeout);
   }
-
-  // Show toast
   saveToast.classList.remove('hidden');
   requestAnimationFrame(() => {
     saveToast.classList.add('visible');
   });
-
-  // Hide after 2 seconds
   saveTimeout = setTimeout(() => {
     saveToast.classList.remove('visible');
     setTimeout(() => {
@@ -177,29 +161,40 @@ async function checkAuthStatus(): Promise<void> {
 function showAuthenticatedState(): void {
   if (!currentSession) return;
 
-  // Hide warning
   authWarning.classList.add('hidden');
 
-  // Show user info
   userAvatar.src = currentSession.user.avatar_url || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 24 24" fill="%23e2e8f0"><circle cx="12" cy="8" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>';
   userName.textContent = currentSession.user.name || 'User';
   userEmail.textContent = currentSession.user.email;
 
-  // Show subscription info
+  // Show plan info
+  const plan: UserPlan = currentSession.plan || 'free';
+
+  if (plan === 'pro' || plan === 'team') {
+    planDisplay.textContent = `${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan`;
+    planDisplay.className = 'plan-badge pro';
+    planDetails.textContent = 'Unlimited prompts';
+    upgradeBtn.classList.add('hidden');
+    manageSubscription?.classList.remove('hidden');
+  } else {
+    planDisplay.textContent = 'Free Plan';
+    planDisplay.className = 'plan-badge free';
+    planDetails.textContent = '5 free prompts';
+    upgradeBtn.classList.remove('hidden');
+    manageSubscription?.classList.add('hidden');
+  }
+
   subscriptionInfo.classList.remove('hidden');
   signoutBtn.classList.remove('hidden');
 }
 
 function showUnauthenticatedState(): void {
-  // Show warning
   authWarning.classList.remove('hidden');
 
-  // Reset user info
   userAvatar.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 24 24" fill="%23e2e8f0"><circle cx="12" cy="8" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>';
   userName.textContent = 'Not signed in';
   userEmail.textContent = '';
 
-  // Hide subscription info
   subscriptionInfo.classList.add('hidden');
   signoutBtn.classList.add('hidden');
 }
@@ -215,7 +210,6 @@ async function handleSignOut(): Promise<void> {
 }
 
 function openPopup(): void {
-  // Can't directly open popup, so open the extension
   chrome.action.openPopup?.() || chrome.tabs.create({ url: 'popup.html' });
 }
 
@@ -223,6 +217,7 @@ function openPopup(): void {
 function sendMessage(message: { type: string; [key: string]: unknown }): Promise<{
   isAuthenticated?: boolean;
   session?: UserSession;
+  url?: string;
   error?: string;
 }> {
   return new Promise((resolve) => {

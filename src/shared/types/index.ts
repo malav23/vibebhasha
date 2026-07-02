@@ -7,11 +7,15 @@ export type LanguageCode =
 // Objective types for prompt elaboration
 export type ObjectiveType = 'new_feature' | 'bug_fix' | 'design_improvement' | 'other';
 
+// User plan type
+export type UserPlan = 'free' | 'pro' | 'team';
+
 // User session stored in chrome.storage.local
 export interface UserSession {
   access_token: string;
   refresh_token: string;
   expires_at: number;
+  plan: UserPlan;
   user: {
     id: string;
     email: string;
@@ -26,6 +30,7 @@ export interface TranscriptionResult {
   language: LanguageCode;
   duration: number;
   remaining: number;
+  suggestedObjective?: ObjectiveType;
 }
 
 // Translation and elaboration result
@@ -42,7 +47,7 @@ export interface UsageLimitResult {
 }
 
 // Recording state
-export type RecordingState = 'idle' | 'recording' | 'processing' | 'confirming' | 'previewing' | 'error';
+export type RecordingState = 'idle' | 'recording' | 'processing' | 'transcribing' | 'translating' | 'confirming' | 'previewing' | 'error';
 
 // Message types for communication between content script and service worker
 export type MessageType =
@@ -56,6 +61,10 @@ export type MessageType =
   | 'SIGN_OUT'
   | 'CHECK_USAGE'
   | 'USAGE_RESULT'
+  | 'CHECK_PLAN'
+  | 'PLAN_RESULT'
+  | 'CREATE_CHECKOUT'
+  | 'CHECKOUT_RESULT'
   | 'OPEN_POPUP'
   | 'ERROR';
 
@@ -210,7 +219,7 @@ export interface UpgradeUIStrings {
 export interface SubscriptionPlan {
   id: string;
   name: string;
-  dailyLimit: number;
+  totalLimit: number; // -1 for unlimited
   priceCents: number;
 }
 

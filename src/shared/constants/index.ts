@@ -11,33 +11,48 @@ export const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY!;
 export const EDGE_FUNCTIONS = {
   TRANSCRIBE_AUDIO: '/functions/v1/transcribe-audio',
   TRANSLATE_ELABORATE: '/functions/v1/translate-elaborate',
+  CREATE_CHECKOUT: '/functions/v1/create-checkout',
+  STRIPE_WEBHOOK: '/functions/v1/stripe-webhook',
 } as const;
 
 // Usage limits
-export const FREE_TIER_DAILY_LIMIT = 5;
-export const PRO_TIER_DAILY_LIMIT = 100;
+export const FREE_TIER_TOTAL_LIMIT = 5; // 5 free prompts total (lifetime), not per day
+export const FREE_TIER_DAILY_LIMIT = FREE_TIER_TOTAL_LIMIT; // Alias for backward compat
+export const PRO_TIER_DAILY_LIMIT = -1; // Unlimited
 export const UNLIMITED_TIER_DAILY_LIMIT = -1; // -1 means unlimited
+
+// Pricing
+export const PRICING = {
+  PRO_MONTHLY_CENTS: 499,
+  PRO_YEARLY_CENTS: 3999,
+  TEAM_MONTHLY_CENTS: 999,
+} as const;
 
 // Session storage keys
 export const STORAGE_KEYS = {
   SESSION: 'supabase_session',
   PREFERRED_LANGUAGE: 'preferred_language',
   LAST_USED_OBJECTIVE: 'last_used_objective',
+  ONBOARDING_COMPLETE: 'onboarding_complete',
+  FIRST_INSERT_DONE: 'first_insert_done',
+  USER_PLAN: 'user_plan',
 } as const;
 
 // Keyboard shortcuts
 export const KEYBOARD_SHORTCUTS = {
   TOGGLE_RECORDING: {
-    key: 'I',
-    ctrlKey: true,
-    shiftKey: true,
-    metaKey: false, // For Windows/Linux
+    key: 'v',
+    ctrlKey: false,
+    shiftKey: false,
+    metaKey: false,
+    altKey: true, // Alt+V for Windows/Linux
   },
   TOGGLE_RECORDING_MAC: {
-    key: 'I',
+    key: 'v',
     ctrlKey: false,
-    shiftKey: true,
-    metaKey: true, // For Mac (Command)
+    shiftKey: false,
+    metaKey: false,
+    altKey: true, // Alt+V for Mac too (Option+V)
   },
 } as const;
 

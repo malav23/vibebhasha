@@ -1,5 +1,5 @@
 import { supabaseService } from './supabase-service';
-import { FREE_TIER_DAILY_LIMIT } from '../shared/constants';
+import { FREE_TIER_TOTAL_LIMIT } from '../shared/constants';
 import { UsageLimitResult } from '../shared/types';
 
 // Cache for usage limit to reduce API calls
@@ -50,7 +50,7 @@ export async function recordUsage(params: {
   elaboratedTextLength?: number;
   tokensUsed?: number;
 }): Promise<void> {
-  // Increment the daily counter
+  // Increment the usage counter
   await supabaseService.incrementUsage();
 
   // Log detailed usage for analytics
@@ -61,17 +61,16 @@ export async function recordUsage(params: {
 }
 
 /**
- * Get the daily limit for the current user
- * Returns -1 for unlimited
+ * Get the total limit for the current user
+ * Returns -1 for unlimited (Pro/Team)
  */
-export function getDailyLimit(): number {
+export function getTotalLimit(): number {
   // TODO: Check user's subscription tier and return appropriate limit
-  // For now, return free tier limit
-  return FREE_TIER_DAILY_LIMIT;
+  return FREE_TIER_TOTAL_LIMIT;
 }
 
 /**
- * Check if user has exceeded their daily limit
+ * Check if user has exceeded their limit
  */
 export async function isLimitExceeded(): Promise<boolean> {
   const result = await checkUsageLimit();
@@ -79,7 +78,7 @@ export async function isLimitExceeded(): Promise<boolean> {
 }
 
 /**
- * Get remaining prompts for today
+ * Get remaining prompts
  */
 export async function getRemainingPrompts(): Promise<number> {
   const result = await checkUsageLimit();

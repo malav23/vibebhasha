@@ -6,9 +6,14 @@ import { formatDuration, MAX_AUDIO_DURATION_SECONDS } from '../shared/utils/audi
 export class RecordingUI {
   private container: HTMLElement | null = null;
   private durationInterval: ReturnType<typeof setInterval> | null = null;
+  private longWaitTimeout: ReturnType<typeof setTimeout> | null = null;
   private currentDuration: number = 0;
+  private processingStartTime: number = 0;
+  private processingInterval: ReturnType<typeof setInterval> | null = null;
   private onStopCallback: (() => void) | null = null;
   private onCancelCallback: (() => void) | null = null;
+  private analyserNode: AnalyserNode | null = null;
+  private animationFrameId: number | null = null;
 
   /**
    * Show the recording modal
@@ -21,29 +26,69 @@ export class RecordingUI {
     this.onStopCallback = onStop;
     this.onCancelCallback = onCancel;
 
-    // Remove any existing modal
     this.hide();
 
     const strings = getRecordingStrings(language);
 
-    // Create the modal container
     this.container = document.createElement('div');
     this.container.className = `${CSS_PREFIX}modal-overlay`;
+    this.container.setAttribute('role', 'dialog');
+    this.container.setAttribute('aria-modal', 'true');
+    this.container.setAttribute('aria-label', 'Recording voice input');
     this.container.innerHTML = this.createModalHTML(strings);
 
-    // Add to DOM
     document.body.appendChild(this.container);
 
-    // Animate in
     requestAnimationFrame(() => {
       this.container?.classList.add(`${CSS_PREFIX}modal-visible`);
     });
 
-    // Setup event listeners
     this.setupEventListeners();
-
-    // Start duration counter
     this.startDurationCounter();
+  }
+
+  /**
+   * Connect an audio stream for real-time level visualization
+   */
+  connectAudioStream(stream: MediaStream): void {
+    try {
+      const audioContext = new AudioContext();
+      const source = audioContext.createMediaStreamSource(stream);
+      this.analyserNode = audioContext.createAnalyser();
+      this.analyserNode.fftSize = 64;
+      source.connect(this.analyserNode);
+      this.startAudioVisualization();
+    } catch (e) {
+      console.warn('VibeBhasha: Could not connect audio visualizer', e);
+    }
+  }
+
+  private startAudioVisualization(): void {
+    if (!this.analyserNode || !this.container) return;
+
+    const bars = this.container.querySelectorAll(`.${CSS_PREFIX}waveform-bar`);
+    if (bars.length === 0) return;
+
+    const dataArray = new Uint8Array(this.analyserNode.frequencyBinCount);
+
+    const animate = () => {
+      if (!this.analyserNode || !this.container) return;
+
+      this.analyserNode.getByteFrequencyData(dataArray);
+
+      // Map frequency data to bar heights
+      const barCount = bars.length;
+      for (let i = 0; i < barCount; i++) {
+        const dataIndex = Math.floor((i / barCount) * dataArray.length);
+        const value = dataArray[dataIndex] || 0;
+        const height = Math.max(8, (value / 255) * 40);
+        (bars[i] as HTMLElement).style.height = `${height}px`;
+      }
+
+      this.animationFrameId = requestAnimationFrame(animate);
+    };
+
+    animate();
   }
 
   /**
@@ -66,8 +111,27 @@ export class RecordingUI {
         stopButton.disabled = false;
       }
       waveform?.classList.add(`${CSS_PREFIX}waveform-active`);
+    } else if (state === 'transcribing') {
+      if (statusEl) statusEl.innerHTML = `${strings.transcribing}<span class="${CSS_PREFIX}ellipsis"></span>`;
+      if (subStatusEl) subStatusEl.textContent = '';
+      if (stopButton) {
+        stopButton.disabled = true;
+        stopButton.textContent = strings.processing;
+      }
+      waveform?.classList.remove(`${CSS_PREFIX}waveform-active`);
+      this.stopDurationCounter();
+      this.stopAudioVisualization();
+      this.startProcessingTimer();
+    } else if (state === 'translating') {
+      if (statusEl) statusEl.innerHTML = `Translating<span class="${CSS_PREFIX}ellipsis"></span>`;
+      if (subStatusEl) subStatusEl.textContent = '';
+      if (stopButton) {
+        stopButton.disabled = true;
+        stopButton.textContent = strings.processing;
+      }
+      waveform?.classList.remove(`${CSS_PREFIX}waveform-active`);
     } else if (state === 'processing') {
-      if (statusEl) statusEl.textContent = strings.processing;
+      if (statusEl) statusEl.innerHTML = `${strings.processing}<span class="${CSS_PREFIX}ellipsis"></span>`;
       if (subStatusEl) subStatusEl.textContent = strings.transcribing;
       if (stopButton) {
         stopButton.disabled = true;
@@ -75,6 +139,53 @@ export class RecordingUI {
       }
       waveform?.classList.remove(`${CSS_PREFIX}waveform-active`);
       this.stopDurationCounter();
+      this.stopAudioVisualization();
+    }
+  }
+
+  private startProcessingTimer(): void {
+    this.processingStartTime = Date.now();
+    this.clearProcessingInterval();
+
+    this.processingInterval = setInterval(() => {
+      if (!this.container) {
+        this.clearProcessingInterval();
+        return;
+      }
+
+      const elapsed = Math.floor((Date.now() - this.processingStartTime) / 1000);
+      const subStatusEl = this.container.querySelector(`.${CSS_PREFIX}substatus-text`);
+
+      if (elapsed >= 5 && subStatusEl) {
+        subStatusEl.textContent = `Still working — longer recordings take a moment (${elapsed}s)`;
+      } else if (subStatusEl && elapsed > 0) {
+        subStatusEl.textContent = `Processing... (${elapsed}s)`;
+      }
+    }, 1000);
+  }
+
+  private clearProcessingInterval(): void {
+    if (this.processingInterval) {
+      clearInterval(this.processingInterval);
+      this.processingInterval = null;
+    }
+  }
+
+  /**
+   * Show transcribed text inside the recording modal
+   */
+  showTranscribedText(text: string): void {
+    if (!this.container) return;
+
+    const existing = this.container.querySelector(`.${CSS_PREFIX}transcribed-text`);
+    if (existing) existing.remove();
+
+    const subStatusEl = this.container.querySelector(`.${CSS_PREFIX}substatus-text`);
+    if (subStatusEl) {
+      const textDiv = document.createElement('div');
+      textDiv.className = `${CSS_PREFIX}transcribed-text`;
+      textDiv.textContent = text;
+      subStatusEl.after(textDiv);
     }
   }
 
@@ -83,6 +194,13 @@ export class RecordingUI {
    */
   hide(): void {
     this.stopDurationCounter();
+    this.stopAudioVisualization();
+    this.clearProcessingInterval();
+
+    if (this.longWaitTimeout) {
+      clearTimeout(this.longWaitTimeout);
+      this.longWaitTimeout = null;
+    }
 
     if (this.container) {
       this.container.classList.remove(`${CSS_PREFIX}modal-visible`);
@@ -93,10 +211,20 @@ export class RecordingUI {
     }
   }
 
-  /**
-   * Create the modal HTML
-   */
+  private stopAudioVisualization(): void {
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
+    this.analyserNode = null;
+  }
+
   private createModalHTML(strings: typeof RECORDING_STRINGS['hi']): string {
+    // Create 8 bars for better visualization
+    const bars = Array(8).fill(0).map(() =>
+      `<div class="${CSS_PREFIX}waveform-bar"></div>`
+    ).join('');
+
     return `
       <div class="${CSS_PREFIX}modal">
         <div class="${CSS_PREFIX}modal-content ${CSS_PREFIX}recording-modal">
@@ -108,11 +236,7 @@ export class RecordingUI {
           </div>
 
           <div class="${CSS_PREFIX}waveform ${CSS_PREFIX}waveform-active">
-            <div class="${CSS_PREFIX}waveform-bar"></div>
-            <div class="${CSS_PREFIX}waveform-bar"></div>
-            <div class="${CSS_PREFIX}waveform-bar"></div>
-            <div class="${CSS_PREFIX}waveform-bar"></div>
-            <div class="${CSS_PREFIX}waveform-bar"></div>
+            ${bars}
           </div>
 
           <div class="${CSS_PREFIX}status-text">${strings.recording}</div>
@@ -132,9 +256,6 @@ export class RecordingUI {
     `;
   }
 
-  /**
-   * Setup event listeners
-   */
   private setupEventListeners(): void {
     if (!this.container) return;
 
@@ -150,14 +271,12 @@ export class RecordingUI {
       this.onCancelCallback?.();
     });
 
-    // Close on overlay click
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) {
         this.onCancelCallback?.();
       }
     });
 
-    // Close on Escape key
     document.addEventListener('keydown', this.handleKeyDown);
   }
 
@@ -167,9 +286,6 @@ export class RecordingUI {
     }
   };
 
-  /**
-   * Start the duration counter
-   */
   private startDurationCounter(): void {
     this.currentDuration = 0;
     this.updateDurationDisplay();
@@ -178,16 +294,12 @@ export class RecordingUI {
       this.currentDuration += 1;
       this.updateDurationDisplay();
 
-      // Auto-stop at max duration
       if (this.currentDuration >= MAX_AUDIO_DURATION_SECONDS) {
         this.onStopCallback?.();
       }
     }, 1000);
   }
 
-  /**
-   * Stop the duration counter
-   */
   private stopDurationCounter(): void {
     if (this.durationInterval) {
       clearInterval(this.durationInterval);
@@ -196,22 +308,12 @@ export class RecordingUI {
     document.removeEventListener('keydown', this.handleKeyDown);
   }
 
-  /**
-   * Update the duration display
-   */
   private updateDurationDisplay(): void {
     if (!this.container) return;
 
     const durationEl = this.container.querySelector(`.${CSS_PREFIX}duration-text`);
     if (durationEl) {
-      const progress = (this.currentDuration / MAX_AUDIO_DURATION_SECONDS) * 100;
       durationEl.textContent = `${formatDuration(this.currentDuration)} / ${formatDuration(MAX_AUDIO_DURATION_SECONDS)}`;
-
-      // Update progress bar if exists
-      const progressBar = this.container.querySelector(`.${CSS_PREFIX}progress-bar`) as HTMLElement;
-      if (progressBar) {
-        progressBar.style.width = `${progress}%`;
-      }
     }
   }
 }

@@ -43,13 +43,11 @@ export class KeyboardHandler {
       ? KEYBOARD_SHORTCUTS.TOGGLE_RECORDING_MAC
       : KEYBOARD_SHORTCUTS.TOGGLE_RECORDING;
 
-    // Check if the shortcut matches
+    // Check if the shortcut matches (Alt+V)
     const keyMatches = e.key.toLowerCase() === shortcut.key.toLowerCase();
-    const ctrlMatches = e.ctrlKey === shortcut.ctrlKey;
-    const shiftMatches = e.shiftKey === shortcut.shiftKey;
-    const metaMatches = e.metaKey === shortcut.metaKey;
+    const altMatches = e.altKey === (shortcut.altKey ?? false);
 
-    if (keyMatches && ctrlMatches && shiftMatches && metaMatches) {
+    if (keyMatches && altMatches && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
       e.preventDefault();
       e.stopPropagation();
       this.callback?.();

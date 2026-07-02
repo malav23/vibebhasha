@@ -3,7 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-user-token',
 };
 
 serve(async (req) => {
@@ -13,11 +13,11 @@ serve(async (req) => {
   }
 
   try {
-    // Verify authorization
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    // Get user token from x-user-token header (preferred) or Authorization header (fallback)
+    const userToken = req.headers.get('x-user-token') || req.headers.get('Authorization')?.replace('Bearer ', '');
+    if (!userToken) {
       return new Response(
-        JSON.stringify({ error: 'Missing authorization header' }),
+        JSON.stringify({ error: 'Missing authorization' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -27,7 +27,7 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
+      global: { headers: { Authorization: `Bearer ${userToken}` } },
     });
 
     // Verify user
@@ -90,8 +90,13 @@ serve(async (req) => {
     }
 
     // Convert audio file to base64 for Gemini
-    const audioBytes = await audioFile.arrayBuffer();
-    const audioBase64 = btoa(String.fromCharCode(...new Uint8Array(audioBytes)));
+    const audioBytes = new Uint8Array(await audioFile.arrayBuffer());
+    let binary = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < audioBytes.length; i += chunkSize) {
+      binary += String.fromCharCode(...audioBytes.subarray(i, i + chunkSize));
+    }
+    const audioBase64 = btoa(binary);
 
     // Determine MIME type
     const mimeType = audioFile.type || 'audio/webm';

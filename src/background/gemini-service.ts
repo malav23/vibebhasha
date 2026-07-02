@@ -1,15 +1,50 @@
 import { supabaseService } from './supabase-service';
-import { SUPABASE_URL, EDGE_FUNCTIONS } from '../shared/constants';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, EDGE_FUNCTIONS } from '../shared/constants';
 import { TranscriptionResult, ElaborationResult, LanguageCode, ObjectiveType } from '../shared/types';
+
+/**
+ * Get a valid access token, refreshing if expired or about to expire
+ */
+async function getValidAccessToken(): Promise<string> {
+  let accessToken = supabaseService.getAccessToken();
+
+  const session = supabaseService.getSession();
+  if (session) {
+    const now = Math.floor(Date.now() / 1000);
+    if (session.expires_at - now < 60) {
+      const refreshed = await supabaseService.refreshSession();
+      if (refreshed) {
+        accessToken = supabaseService.getAccessToken();
+      }
+    }
+  }
+
+  if (!accessToken) {
+    throw new Error('Not authenticated');
+  }
+
+  return accessToken;
+}
+
+/**
+ * Build headers for edge function requests.
+ * Uses anon key in Authorization (passes relay HS256 validation)
+ * and sends the user's ES256 JWT in x-user-token for the function to authenticate.
+ */
+function buildEdgeFunctionHeaders(userToken: string, extraHeaders?: Record<string, string>): Record<string, string> {
+  return {
+    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+    'apikey': SUPABASE_ANON_KEY,
+    'x-user-token': userToken,
+    ...extraHeaders,
+  };
+}
 
 /**
  * Send audio to Supabase Edge Function for transcription via Gemini API
  */
 export async function transcribeAudio(audioData: string): Promise<TranscriptionResult> {
-  const accessToken = supabaseService.getAccessToken();
-  if (!accessToken) {
-    throw new Error('Not authenticated');
-  }
+  const accessToken = await getValidAccessToken();
 
   // Convert base64 to blob
   const byteCharacters = atob(audioData);
@@ -25,16 +60,19 @@ export async function transcribeAudio(audioData: string): Promise<TranscriptionR
   formData.append('audio', audioBlob, 'recording.webm');
 
   // Call the edge function
-  const response = await fetch(`${SUPABASE_URL}${EDGE_FUNCTIONS.TRANSCRIBE_AUDIO}`, {
+  const url = `${SUPABASE_URL}${EDGE_FUNCTIONS.TRANSCRIBE_AUDIO}`;
+
+  const response = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-    },
+    headers: buildEdgeFunctionHeaders(accessToken),
     body: formData,
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+    const errorBody = await response.text();
+    console.log('[DEBUG] transcribeAudio failed:', response.status, errorBody);
+    let error: { error?: string };
+    try { error = JSON.parse(errorBody); } catch { error = {}; }
     throw new Error(error.error || `Transcription failed: ${response.status}`);
   }
 
@@ -56,17 +94,13 @@ export async function translateAndElaborate(params: {
   objective: ObjectiveType;
   additionalContext?: string;
 }): Promise<ElaborationResult> {
-  const accessToken = supabaseService.getAccessToken();
-  if (!accessToken) {
-    throw new Error('Not authenticated');
-  }
+  const accessToken = await getValidAccessToken();
 
   const response = await fetch(`${SUPABASE_URL}${EDGE_FUNCTIONS.TRANSLATE_ELABORATE}`, {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
+    headers: buildEdgeFunctionHeaders(accessToken, {
       'Content-Type': 'application/json',
-    },
+    }),
     body: JSON.stringify({
       text: params.text,
       sourceLanguage: params.sourceLanguage,

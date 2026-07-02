@@ -1,14 +1,16 @@
-import { UserSession, LanguageCode } from '../shared/types';
+import { UserSession, LanguageCode, UserPlan } from '../shared/types';
 import { SUPPORTED_LANGUAGES, ALL_LANGUAGE_CODES } from '../shared/constants/languages';
-import { STORAGE_KEYS, FREE_TIER_DAILY_LIMIT } from '../shared/constants';
+import { STORAGE_KEYS, FREE_TIER_TOTAL_LIMIT } from '../shared/constants';
 
 // DOM Elements
 const loadingState = document.getElementById('loading-state')!;
+const onboardingState = document.getElementById('onboarding-state')!;
 const loginState = document.getElementById('login-state')!;
 const dashboardState = document.getElementById('dashboard-state')!;
 const errorState = document.getElementById('error-state')!;
 
 const googleSignInBtn = document.getElementById('google-signin-btn')!;
+const onboardingGoogleBtn = document.getElementById('onboarding-google-btn');
 const signOutBtn = document.getElementById('signout-btn')!;
 const optionsBtn = document.getElementById('options-btn')!;
 const upgradeBtn = document.getElementById('upgrade-btn')!;
@@ -17,8 +19,11 @@ const retryBtn = document.getElementById('retry-btn')!;
 const userAvatar = document.getElementById('user-avatar') as HTMLImageElement;
 const userName = document.getElementById('user-name')!;
 const userEmail = document.getElementById('user-email')!;
+const planBadge = document.getElementById('plan-badge')!;
 
-const usageProgress = document.getElementById('usage-progress')!;
+const usageRingFill = document.getElementById('usage-ring-fill');
+const usageCount = document.getElementById('usage-count');
+const usageLimit = document.getElementById('usage-limit');
 const usageText = document.getElementById('usage-text')!;
 const upgradeBanner = document.getElementById('upgrade-banner')!;
 
@@ -26,24 +31,34 @@ const languageSelect = document.getElementById('language-select') as HTMLSelectE
 const shortcutDisplay = document.getElementById('shortcut-display')!;
 const errorMessage = document.getElementById('error-message')!;
 
+// Onboarding
+const onboardingPrev = document.getElementById('onboarding-prev') as HTMLButtonElement;
+const onboardingNext = document.getElementById('onboarding-next') as HTMLButtonElement;
+const onboardingSignin = document.getElementById('onboarding-signin');
+
 // State
 let currentSession: UserSession | null = null;
+let currentSlide = 0;
+const totalSlides = 3;
 
 // Initialize popup
 document.addEventListener('DOMContentLoaded', init);
 
 async function init(): Promise<void> {
   try {
-    // Setup event listeners
     setupEventListeners();
-
-    // Populate language selector
     populateLanguageSelector();
-
-    // Update keyboard shortcut display for platform
     updateShortcutDisplay();
 
-    // Check auth status
+    // Check if onboarding is needed
+    const storage = await chrome.storage.local.get(STORAGE_KEYS.ONBOARDING_COMPLETE);
+    const onboardingDone = storage[STORAGE_KEYS.ONBOARDING_COMPLETE];
+
+    if (!onboardingDone) {
+      showOnboarding();
+      return;
+    }
+
     await checkAuthStatus();
   } catch (error) {
     showError((error as Error).message);
@@ -52,16 +67,102 @@ async function init(): Promise<void> {
 
 function setupEventListeners(): void {
   googleSignInBtn.addEventListener('click', handleSignIn);
+  onboardingGoogleBtn?.addEventListener('click', handleOnboardingSignIn);
   signOutBtn.addEventListener('click', handleSignOut);
   optionsBtn.addEventListener('click', openOptions);
   upgradeBtn.addEventListener('click', openUpgrade);
   retryBtn.addEventListener('click', () => location.reload());
   languageSelect.addEventListener('change', handleLanguageChange);
+
+  // Onboarding navigation
+  onboardingPrev?.addEventListener('click', () => navigateSlide(-1));
+  onboardingNext?.addEventListener('click', () => navigateSlide(1));
+
+  // Dot navigation
+  document.querySelectorAll('.dot').forEach((dot) => {
+    dot.addEventListener('click', () => {
+      const slideIdx = parseInt((dot as HTMLElement).dataset.dot || '0');
+      goToSlide(slideIdx);
+    });
+  });
 }
 
+// ============================================
+// Onboarding
+// ============================================
+function showOnboarding(): void {
+  hideAllStates();
+  onboardingState.classList.remove('hidden');
+  goToSlide(0);
+}
+
+function navigateSlide(direction: number): void {
+  const next = currentSlide + direction;
+  if (next >= 0 && next < totalSlides) {
+    goToSlide(next);
+  }
+}
+
+function goToSlide(index: number): void {
+  currentSlide = index;
+
+  // Update slides
+  document.querySelectorAll('.onboarding-slide').forEach((slide) => {
+    slide.classList.remove('active');
+  });
+  const activeSlide = document.querySelector(`[data-slide="${index}"]`);
+  activeSlide?.classList.add('active');
+
+  // Update dots
+  document.querySelectorAll('.dot').forEach((dot) => {
+    dot.classList.remove('active');
+  });
+  document.querySelector(`[data-dot="${index}"]`)?.classList.add('active');
+
+  // Update navigation
+  if (onboardingPrev) {
+    onboardingPrev.classList.toggle('hidden', index === 0);
+  }
+
+  if (index === totalSlides - 1) {
+    // Last slide: hide Next, show sign-in
+    onboardingNext.classList.add('hidden');
+    onboardingSignin?.classList.remove('hidden');
+  } else {
+    onboardingNext.classList.remove('hidden');
+    onboardingNext.textContent = 'Next';
+    onboardingSignin?.classList.add('hidden');
+  }
+}
+
+async function handleOnboardingSignIn(): Promise<void> {
+  if (!onboardingGoogleBtn) return;
+
+  onboardingGoogleBtn.setAttribute('disabled', 'true');
+  onboardingGoogleBtn.innerHTML = '<span class="spinner" style="width:16px;height:16px;margin-right:8px;"></span> Signing in...';
+
+  try {
+    const response = await sendMessage({ type: 'SIGN_IN' });
+
+    // Mark onboarding as complete
+    await chrome.storage.local.set({ [STORAGE_KEYS.ONBOARDING_COMPLETE]: true });
+
+    if (response.isAuthenticated && response.session) {
+      currentSession = response.session;
+      await showDashboard();
+    } else {
+      throw new Error(response.error || 'Sign in failed');
+    }
+  } catch (error) {
+    showError((error as Error).message);
+  }
+}
+
+// ============================================
+// Auth & Dashboard
+// ============================================
 function populateLanguageSelector(): void {
   languageSelect.innerHTML = '';
-
   ALL_LANGUAGE_CODES.forEach((code) => {
     const lang = SUPPORTED_LANGUAGES[code];
     const option = document.createElement('option');
@@ -72,8 +173,7 @@ function populateLanguageSelector(): void {
 }
 
 function updateShortcutDisplay(): void {
-  const isMac = navigator.platform.toLowerCase().includes('mac');
-  shortcutDisplay.textContent = isMac ? '⌘+Shift+I' : 'Ctrl+Shift+I';
+  shortcutDisplay.textContent = 'Alt+V';
 }
 
 async function checkAuthStatus(): Promise<void> {
@@ -88,7 +188,7 @@ async function checkAuthStatus(): Promise<void> {
     } else {
       showLogin();
     }
-  } catch (error) {
+  } catch {
     showError('Failed to check authentication status');
   }
 }
@@ -99,6 +199,9 @@ async function handleSignIn(): Promise<void> {
 
   try {
     const response = await sendMessage({ type: 'SIGN_IN' });
+
+    // Mark onboarding as complete on any sign-in
+    await chrome.storage.local.set({ [STORAGE_KEYS.ONBOARDING_COMPLETE]: true });
 
     if (response.isAuthenticated && response.session) {
       currentSession = response.session;
@@ -127,7 +230,7 @@ async function handleSignOut(): Promise<void> {
     await sendMessage({ type: 'SIGN_OUT' });
     currentSession = null;
     showLogin();
-  } catch (error) {
+  } catch {
     showError('Failed to sign out');
   }
 }
@@ -137,13 +240,18 @@ function openOptions(): void {
 }
 
 function openUpgrade(): void {
-  chrome.tabs.create({ url: 'https://lovable-voice-helper.com/upgrade' });
+  // Request checkout URL from background
+  sendMessage({ type: 'CREATE_CHECKOUT' }).then((response) => {
+    if (response.url) {
+      chrome.tabs.create({ url: response.url });
+    } else {
+      chrome.tabs.create({ url: 'https://vibebhasha.com/pricing' });
+    }
+  });
 }
 
 async function handleLanguageChange(): Promise<void> {
   const selectedLanguage = languageSelect.value as LanguageCode;
-
-  // Save to storage
   await chrome.storage.local.set({
     [STORAGE_KEYS.PREFERRED_LANGUAGE]: selectedLanguage,
   });
@@ -155,30 +263,58 @@ async function showDashboard(): Promise<void> {
     return;
   }
 
+  const plan: UserPlan = currentSession.plan || 'free';
+
   // Update user info
   userAvatar.src = currentSession.user.avatar_url || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="%23e2e8f0"><circle cx="12" cy="8" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>';
   userName.textContent = currentSession.user.name || 'User';
   userEmail.textContent = currentSession.user.email;
 
+  // Plan badge
+  if (plan !== 'free') {
+    planBadge.textContent = plan.toUpperCase();
+    planBadge.classList.remove('hidden');
+  } else {
+    planBadge.classList.add('hidden');
+  }
+
   // Get usage info
+  const dailyLimit = plan === 'free' ? FREE_TIER_TOTAL_LIMIT : -1;
+
   try {
     const usageResponse = await sendMessage({ type: 'CHECK_USAGE' });
 
     if (usageResponse.result) {
       const { remaining } = usageResponse.result;
-      const used = FREE_TIER_DAILY_LIMIT - remaining;
-      const percentage = (used / FREE_TIER_DAILY_LIMIT) * 100;
 
-      usageProgress.style.width = `${percentage}%`;
-      usageText.textContent = `${used} / ${FREE_TIER_DAILY_LIMIT} prompts`;
+      if (plan === 'free') {
+        const used = FREE_TIER_TOTAL_LIMIT - remaining;
+        const percentage = (used / FREE_TIER_TOTAL_LIMIT) * 100;
 
-      // Show upgrade banner if limit is close
-      if (remaining <= 1) {
+        // Update ring
+        if (usageRingFill) {
+          usageRingFill.setAttribute('stroke-dasharray', `${percentage}, 100`);
+        }
+        if (usageCount) usageCount.textContent = `${used}`;
+        if (usageLimit) usageLimit.textContent = `${FREE_TIER_TOTAL_LIMIT}`;
+        usageText.textContent = `${used} / ${FREE_TIER_TOTAL_LIMIT} prompts used`;
+
+        // Show upgrade banner
         upgradeBanner.classList.remove('hidden');
+      } else {
+        // Pro user
+        if (usageRingFill) {
+          usageRingFill.setAttribute('stroke-dasharray', '0, 100');
+          usageRingFill.setAttribute('stroke', '#22c55e');
+        }
+        if (usageCount) usageCount.textContent = '\u221E'; // infinity symbol
+        if (usageLimit) usageLimit.textContent = '';
+        usageText.textContent = 'Unlimited prompts';
+        upgradeBanner.classList.add('hidden');
       }
     }
   } catch {
-    usageText.textContent = '-- / 5 prompts';
+    usageText.textContent = `-- / ${dailyLimit === -1 ? '\u221E' : dailyLimit} prompts`;
   }
 
   // Load preferred language
@@ -210,6 +346,7 @@ function showError(message: string): void {
 
 function hideAllStates(): void {
   loadingState.classList.add('hidden');
+  onboardingState.classList.add('hidden');
   loginState.classList.add('hidden');
   dashboardState.classList.add('hidden');
   errorState.classList.add('hidden');
@@ -220,6 +357,7 @@ function sendMessage(message: { type: string; [key: string]: unknown }): Promise
   isAuthenticated?: boolean;
   session?: UserSession;
   result?: { allowed: boolean; remaining: number };
+  url?: string;
   error?: string;
 }> {
   return new Promise((resolve) => {

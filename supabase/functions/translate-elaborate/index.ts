@@ -3,7 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-user-token',
 };
 
 // Language names for the prompt
@@ -43,21 +43,21 @@ serve(async (req) => {
   }
 
   try {
-    // Verify authorization
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    // Get user token from x-user-token header (preferred) or Authorization header (fallback)
+    const userToken = req.headers.get('x-user-token') || req.headers.get('Authorization')?.replace('Bearer ', '');
+    if (!userToken) {
       return new Response(
-        JSON.stringify({ error: 'Missing authorization header' }),
+        JSON.stringify({ error: 'Missing authorization' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Initialize Supabase client
+    // Initialize Supabase client with user's token
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
+      global: { headers: { Authorization: `Bearer ${userToken}` } },
     });
 
     // Verify user

@@ -1,5 +1,4 @@
 import { CSS_PREFIX, ANIMATION } from '../shared/constants';
-import { UPGRADE_STRINGS } from '../shared/constants/confirmation-ui';
 
 export class UpgradeModal {
   private container: HTMLElement | null = null;
@@ -7,128 +6,131 @@ export class UpgradeModal {
   private onDismissCallback: (() => void) | null = null;
 
   /**
-   * Show the upgrade modal
+   * Show the upgrade modal as a conversion moment.
+   * @param transcribedText - The text the user was trying to send (shown in modal)
+   * @param onUpgrade - Called when user clicks upgrade
+   * @param onDismiss - Called when user dismisses
    */
-  show(onUpgrade: () => void, onDismiss: () => void): void {
+  show(transcribedText: string, onUpgrade: () => void, onDismiss: () => void): void {
     this.onUpgradeCallback = onUpgrade;
     this.onDismissCallback = onDismiss;
 
-    // Remove any existing modal
     this.hide();
 
-    const strings = UPGRADE_STRINGS;
-
-    // Create the modal container
     this.container = document.createElement('div');
     this.container.className = `${CSS_PREFIX}modal-overlay`;
-    this.container.innerHTML = this.createModalHTML(strings);
+    this.container.setAttribute('role', 'dialog');
+    this.container.setAttribute('aria-modal', 'true');
+    this.container.setAttribute('aria-label', 'Upgrade to VibeBhasha Pro');
+    this.container.innerHTML = this.createModalHTML(transcribedText);
 
-    // Add to DOM
     document.body.appendChild(this.container);
 
-    // Animate in
     requestAnimationFrame(() => {
       this.container?.classList.add(`${CSS_PREFIX}modal-visible`);
     });
 
-    // Setup event listeners
     this.setupEventListeners();
+
+    // Focus trap
+    const firstButton = this.container.querySelector('button');
+    (firstButton as HTMLElement)?.focus();
   }
 
-  /**
-   * Hide and remove the modal
-   */
   hide(): void {
     if (this.container) {
       this.container.classList.remove(`${CSS_PREFIX}modal-visible`);
-
       setTimeout(() => {
         this.container?.remove();
         this.container = null;
       }, ANIMATION.FADE_OUT);
     }
-
     document.removeEventListener('keydown', this.handleKeyDown);
   }
 
-  /**
-   * Create the modal HTML
-   */
-  private createModalHTML(strings: typeof UPGRADE_STRINGS): string {
+  private createModalHTML(transcribedText: string): string {
+    const truncatedText = transcribedText.length > 80
+      ? transcribedText.substring(0, 80) + '...'
+      : transcribedText;
+
     return `
       <div class="${CSS_PREFIX}modal">
-        <div class="${CSS_PREFIX}modal-content ${CSS_PREFIX}upgrade-modal">
-          <div class="${CSS_PREFIX}upgrade-icon">
-            <svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 2L15 8L22 9L17 14L18 21L12 18L6 21L7 14L2 9L9 8L12 2Z"/>
-            </svg>
+        <div class="${CSS_PREFIX}modal-content ${CSS_PREFIX}upgrade-modal-v2">
+
+          ${transcribedText ? `
+          <div class="${CSS_PREFIX}upgrade-context">
+            <span class="${CSS_PREFIX}upgrade-context-label">You said:</span>
+            <p class="${CSS_PREFIX}upgrade-context-text">"${truncatedText}"</p>
+            <span class="${CSS_PREFIX}upgrade-context-hint">Upgrade to send it.</span>
+          </div>
+          ` : ''}
+
+          <h2 class="${CSS_PREFIX}upgrade-title-v2">Unlock Unlimited Voice Prompts</h2>
+
+          <div class="${CSS_PREFIX}upgrade-comparison">
+            <div class="${CSS_PREFIX}upgrade-plan ${CSS_PREFIX}upgrade-plan-free">
+              <div class="${CSS_PREFIX}plan-header">Free</div>
+              <div class="${CSS_PREFIX}plan-price">$0<span>/mo</span></div>
+              <ul class="${CSS_PREFIX}plan-features">
+                <li>5 prompts total</li>
+                <li>Standard speed</li>
+                <li>Watermark on prompts</li>
+              </ul>
+            </div>
+
+            <div class="${CSS_PREFIX}upgrade-plan ${CSS_PREFIX}upgrade-plan-pro">
+              <div class="${CSS_PREFIX}plan-badge">RECOMMENDED</div>
+              <div class="${CSS_PREFIX}plan-header">Pro</div>
+              <div class="${CSS_PREFIX}plan-price">$4.99<span>/mo</span></div>
+              <ul class="${CSS_PREFIX}plan-features">
+                <li class="${CSS_PREFIX}feature-highlight">Unlimited prompts</li>
+                <li class="${CSS_PREFIX}feature-highlight">Priority processing</li>
+                <li class="${CSS_PREFIX}feature-highlight">No watermark</li>
+                <li>Prompt history</li>
+                <li>Dark mode</li>
+                <li>Multi-platform</li>
+              </ul>
+            </div>
           </div>
 
-          <h2 class="${CSS_PREFIX}upgrade-title">${strings.title}</h2>
-
-          <p class="${CSS_PREFIX}upgrade-message">${strings.message}</p>
-
-          <div class="${CSS_PREFIX}upgrade-features">
-            <div class="${CSS_PREFIX}feature-item">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
-              <span>100 voice prompts per day</span>
-            </div>
-            <div class="${CSS_PREFIX}feature-item">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
-              <span>Priority processing</span>
-            </div>
-            <div class="${CSS_PREFIX}feature-item">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
-              <span>Advanced prompt optimization</span>
-            </div>
-          </div>
-
-          <div class="${CSS_PREFIX}modal-actions">
-            <button class="${CSS_PREFIX}upgrade-btn ${CSS_PREFIX}btn-primary">
-              ${strings.upgradeButton}
+          <div class="${CSS_PREFIX}upgrade-actions-v2">
+            <button class="${CSS_PREFIX}upgrade-cta ${CSS_PREFIX}btn-primary">
+              Start 7-day free trial
             </button>
-            <button class="${CSS_PREFIX}dismiss-btn ${CSS_PREFIX}btn-secondary">
-              ${strings.dismissButton}
+            <button class="${CSS_PREFIX}upgrade-dismiss-v2 ${CSS_PREFIX}btn-tertiary">
+              Not now
             </button>
           </div>
 
-          <div class="${CSS_PREFIX}upgrade-note">
-            Your limit resets at midnight UTC
-          </div>
+          <p class="${CSS_PREFIX}upgrade-social-proof">
+            Join 2,000+ developers using VibeBhasha Pro
+          </p>
+
+          <p class="${CSS_PREFIX}upgrade-trial-note">
+            Cancel anytime. No charge for 7 days.
+          </p>
         </div>
       </div>
     `;
   }
 
-  /**
-   * Setup event listeners
-   */
   private setupEventListeners(): void {
     if (!this.container) return;
 
-    const upgradeBtn = this.container.querySelector(`.${CSS_PREFIX}upgrade-btn`);
-    const dismissBtn = this.container.querySelector(`.${CSS_PREFIX}dismiss-btn`);
+    const upgradeBtn = this.container.querySelector(`.${CSS_PREFIX}upgrade-cta`);
+    const dismissBtn = this.container.querySelector(`.${CSS_PREFIX}upgrade-dismiss-v2`);
     const overlay = this.container;
 
-    // Upgrade button
     upgradeBtn?.addEventListener('click', () => {
       this.onUpgradeCallback?.();
       this.hide();
     });
 
-    // Dismiss button
     dismissBtn?.addEventListener('click', () => {
       this.onDismissCallback?.();
       this.hide();
     });
 
-    // Close on overlay click
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) {
         this.onDismissCallback?.();
@@ -136,7 +138,6 @@ export class UpgradeModal {
       }
     });
 
-    // Keyboard shortcuts
     document.addEventListener('keydown', this.handleKeyDown);
   }
 

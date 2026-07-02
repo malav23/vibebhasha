@@ -50,8 +50,8 @@
   "commands": {
     "toggle-recording": {
       "suggested_key": {
-        "default": "Ctrl+Shift+I",
-        "mac": "Command+Shift+I"
+        "default": "Alt+V",
+        "mac": "Alt+V"
       },
       "description": "Start/Stop voice recording"
     }

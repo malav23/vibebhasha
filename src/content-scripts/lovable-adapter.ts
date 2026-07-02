@@ -6,6 +6,8 @@ import { CSS_PREFIX } from '../shared/constants';
 export class LovableAdapter {
   private micButtonContainer: HTMLElement | null = null;
   private micButton: HTMLElement | null = null;
+  private usageBadge: HTMLElement | null = null;
+  private isFloatingButton: boolean = false;
 
   /**
    * Initialize the adapter and inject the microphone button
@@ -36,9 +38,16 @@ export class LovableAdapter {
           clearInterval(checkInterval);
           resolve();
         }
-      }, 500);
+      }, 200); // Reduced from 500ms to 200ms
 
-      // Timeout after 30 seconds
+      // Show floating button immediately while waiting
+      setTimeout(() => {
+        if (!this.micButton) {
+          this.injectFloatingButton();
+        }
+      }, 1000);
+
+      // Stop polling after 30 seconds
       setTimeout(() => {
         clearInterval(checkInterval);
         resolve();
@@ -47,21 +56,31 @@ export class LovableAdapter {
   }
 
   /**
-   * Find Lovable's input area
-   * Note: These selectors may need to be updated based on Lovable's actual DOM structure
+   * Find Lovable's input area with resilient selectors
    */
   private findInputArea(): HTMLElement | null {
-    // Try various selectors that might match Lovable's input area
     const selectors = [
+      // Data attributes
       '[data-testid="prompt-input"]',
       '[data-testid="chat-input"]',
+      // ARIA roles
+      '[role="textbox"][aria-label*="prompt" i]',
+      '[role="textbox"][aria-label*="message" i]',
+      // React patterns
+      '[class*="PromptInput"]',
+      '[class*="ChatInput"]',
+      // Placeholder-based
       'textarea[placeholder*="Lovable"]',
       'textarea[placeholder*="Ask"]',
       'textarea[placeholder*="prompt"]',
       'textarea[placeholder*="describe"]',
       'textarea[placeholder*="create"]',
+      'textarea[placeholder*="Build"]',
+      'textarea[placeholder*="Type"]',
+      // Class-based
       '.prompt-input',
       '.chat-input',
+      // Generic fallbacks
       'form textarea',
       'textarea',
       '[contenteditable="true"]',
@@ -89,34 +108,24 @@ export class LovableAdapter {
       return null;
     }
 
-    console.log('VibeBhasha: Looking for button container near input area');
-
     // Walk up the DOM tree to find a suitable container
     let current: HTMLElement = inputArea;
     for (let i = 0; i < 5; i++) {
       const parentEl: HTMLElement | null = current.parentElement;
       if (!parentEl) break;
 
-      // Look for a container that looks like a form or input wrapper
       const classes = parentEl.classList.toString();
       if (parentEl.tagName === 'FORM' ||
           classes.includes('input') ||
           classes.includes('prompt') ||
           classes.includes('chat')) {
-        console.log('VibeBhasha: Found form/input container:', parentEl.tagName, parentEl.className);
         return parentEl;
       }
       current = parentEl;
     }
 
     // Fallback: just use the input's parent
-    const inputParent = inputArea.parentElement;
-    if (inputParent) {
-      console.log('VibeBhasha: Using input parent as container:', inputParent.tagName, inputParent.className);
-      return inputParent;
-    }
-
-    return null;
+    return inputArea.parentElement || null;
   }
 
   /**
@@ -133,8 +142,6 @@ export class LovableAdapter {
       return;
     }
 
-    console.log('VibeBhasha: Found container, injecting mic button');
-
     // Create the button container
     this.micButtonContainer = document.createElement('div');
     this.micButtonContainer.className = `${CSS_PREFIX}mic-button-container`;
@@ -142,8 +149,9 @@ export class LovableAdapter {
     // Create the button
     this.micButton = document.createElement('button');
     this.micButton.className = `${CSS_PREFIX}mic-button`;
-    this.micButton.title = 'VibeBhasha Voice Input (Ctrl+Shift+I)';
+    this.micButton.title = 'VibeBhasha Voice Input (Alt+V)';
     this.micButton.setAttribute('data-vibebhasha', 'true');
+    this.micButton.setAttribute('aria-label', 'Start voice recording');
     this.micButton.innerHTML = `
       <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
         <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
@@ -151,6 +159,7 @@ export class LovableAdapter {
       </svg>
     `;
 
+    this.isFloatingButton = false;
     this.micButtonContainer.appendChild(this.micButton);
     container.appendChild(this.micButtonContainer);
     console.log('VibeBhasha: Mic button injected successfully');
@@ -160,13 +169,19 @@ export class LovableAdapter {
    * Inject a floating microphone button as fallback
    */
   private injectFloatingButton(): void {
+    // Don't re-inject if floating button already exists and is in DOM
+    if (this.micButton && this.isFloatingButton && document.contains(this.micButton)) {
+      return;
+    }
+
     // Remove any existing floating button
-    document.querySelector('.lvh-floating-mic')?.remove();
+    document.querySelectorAll('.lvh-floating-mic').forEach(el => el.remove());
 
     const floatingBtn = document.createElement('button');
-    floatingBtn.className = 'lvh-floating-mic';
-    floatingBtn.title = 'VibeBhasha Voice Input (Ctrl+Shift+I)';
+    floatingBtn.className = 'lvh-floating-mic lvh-mic-entering';
+    floatingBtn.title = 'VibeBhasha Voice Input (Alt+V)';
     floatingBtn.setAttribute('data-vibebhasha', 'true');
+    floatingBtn.setAttribute('aria-label', 'Start voice recording');
     floatingBtn.innerHTML = `
       <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
         <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
@@ -176,6 +191,14 @@ export class LovableAdapter {
 
     document.body.appendChild(floatingBtn);
     this.micButton = floatingBtn;
+    this.micButtonContainer = floatingBtn; // Track floating button to fix MutationObserver bug
+    this.isFloatingButton = true;
+
+    // Remove entrance animation class after it completes
+    setTimeout(() => {
+      floatingBtn.classList.remove('lvh-mic-entering');
+    }, 600);
+
     console.log('VibeBhasha: Floating mic button injected');
   }
 
@@ -184,8 +207,12 @@ export class LovableAdapter {
    */
   private removeMicrophoneButton(): void {
     this.micButtonContainer?.remove();
+    // Also clean up any orphaned floating buttons
+    document.querySelectorAll('.lvh-floating-mic').forEach(el => el.remove());
     this.micButtonContainer = null;
     this.micButton = null;
+    this.usageBadge = null;
+    this.isFloatingButton = false;
   }
 
   /**
@@ -193,15 +220,23 @@ export class LovableAdapter {
    */
   setMicButtonClickHandler(handler: () => void): void {
     if (this.micButton) {
-      console.log('VibeBhasha: Setting mic button click handler');
       this.micButton.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        console.log('VibeBhasha: Mic button clicked!');
         handler();
       });
     } else {
       console.warn('VibeBhasha: No mic button found to attach handler');
+      // Retry after a short delay in case button hasn't loaded yet
+      setTimeout(() => {
+        if (this.micButton) {
+          this.micButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handler();
+          });
+        }
+      }, 2000);
     }
   }
 
@@ -211,17 +246,71 @@ export class LovableAdapter {
   setMicButtonState(state: 'idle' | 'recording' | 'processing'): void {
     if (!this.micButton) return;
 
-    // Remove all state classes (both regular and floating)
     this.micButton.classList.remove(
       `${CSS_PREFIX}mic-recording`,
-      `${CSS_PREFIX}mic-processing`
+      `${CSS_PREFIX}mic-processing`,
+      `${CSS_PREFIX}mic-last-prompt`,
+      `${CSS_PREFIX}mic-exhausted`
     );
 
-    // Add appropriate class
     if (state === 'recording') {
       this.micButton.classList.add(`${CSS_PREFIX}mic-recording`);
     } else if (state === 'processing') {
       this.micButton.classList.add(`${CSS_PREFIX}mic-processing`);
+    }
+  }
+
+  /**
+   * Update usage badge on mic button
+   * @param remaining - number of prompts remaining (-1 for no badge / pro)
+   */
+  updateUsageBadge(remaining: number): void {
+    if (!this.micButton) return;
+
+    // Remove existing badge
+    this.usageBadge?.remove();
+    this.usageBadge = null;
+
+    // Remove scarcity classes
+    this.micButton.classList.remove(
+      `${CSS_PREFIX}mic-last-prompt`,
+      `${CSS_PREFIX}mic-exhausted`
+    );
+
+    // Pro users: no badge
+    if (remaining < 0) return;
+
+    // Exhausted
+    if (remaining === 0) {
+      this.micButton.classList.add(`${CSS_PREFIX}mic-exhausted`);
+      this.micButton.title = 'Go Pro for unlimited voice prompts';
+      return;
+    }
+
+    // Last prompt warning
+    if (remaining === 1) {
+      this.micButton.classList.add(`${CSS_PREFIX}mic-last-prompt`);
+    }
+
+    // Create badge
+    this.usageBadge = document.createElement('span');
+    this.usageBadge.className = `${CSS_PREFIX}usage-badge`;
+    if (remaining === 1) {
+      this.usageBadge.classList.add(`${CSS_PREFIX}badge-warning`);
+    }
+    this.usageBadge.textContent = `${remaining}`;
+    this.usageBadge.title = `${remaining} free prompt${remaining !== 1 ? 's' : ''} left today`;
+
+    // Insert badge relative to button position
+    if (this.isFloatingButton) {
+      this.micButton.style.position = 'relative';
+      this.micButton.appendChild(this.usageBadge);
+    } else if (this.micButtonContainer && this.micButtonContainer !== this.micButton) {
+      this.micButtonContainer.style.position = 'relative';
+      this.micButtonContainer.insertBefore(this.usageBadge, this.micButton);
+    } else {
+      this.micButton.style.position = 'relative';
+      this.micButton.appendChild(this.usageBadge);
     }
   }
 
@@ -238,37 +327,25 @@ export class LovableAdapter {
   insertTextIntoInput(text: string): boolean {
     const inputArea = this.findInputArea();
     if (!inputArea) {
-      console.warn('Lovable Voice Helper: Could not find input area');
+      console.warn('VibeBhasha: Could not find input area');
       return false;
     }
 
-    // Handle different input types
     if (inputArea.tagName.toLowerCase() === 'textarea') {
       const textarea = inputArea as HTMLTextAreaElement;
       textarea.value = text;
-
-      // Trigger input events so Lovable recognizes the change
       textarea.dispatchEvent(new Event('input', { bubbles: true }));
       textarea.dispatchEvent(new Event('change', { bubbles: true }));
-
-      // Focus the textarea
       textarea.focus();
     } else if (inputArea.isContentEditable) {
-      // Handle contenteditable elements
       inputArea.textContent = text;
-
-      // Trigger input event
       inputArea.dispatchEvent(new InputEvent('input', {
         bubbles: true,
         cancelable: true,
         inputType: 'insertText',
         data: text,
       }));
-
-      // Focus the element
       inputArea.focus();
-
-      // Move cursor to end
       const range = document.createRange();
       range.selectNodeContents(inputArea);
       range.collapse(false);
@@ -287,12 +364,13 @@ export class LovableAdapter {
   }
 
   /**
-   * Observe DOM changes to re-inject button if needed
+   * Observe DOM changes to re-inject button if needed.
+   * Fixed: tracks floating button via micButtonContainer to prevent infinite loop.
    */
   private observeDOMChanges(): void {
     const observer = new MutationObserver(() => {
-      // Check if our button still exists
-      if (!document.contains(this.micButtonContainer)) {
+      // Only re-inject if our tracked container is no longer in DOM
+      if (this.micButtonContainer && !document.contains(this.micButtonContainer)) {
         this.injectMicrophoneButton();
       }
     });

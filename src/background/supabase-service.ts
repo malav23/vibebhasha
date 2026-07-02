@@ -86,6 +86,7 @@ class SupabaseService {
           access_token: data.session.access_token,
           refresh_token: data.session.refresh_token || this.session.refresh_token,
           expires_at: data.session.expires_at || 0,
+          plan: this.session.plan || 'free',
           user: {
             id: data.session.user.id,
             email: data.session.user.email || '',

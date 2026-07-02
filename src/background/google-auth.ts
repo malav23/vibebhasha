@@ -143,6 +143,7 @@ function createUserSession(session: any, user: any): UserSession {
     access_token: session.access_token,
     refresh_token: session.refresh_token || '',
     expires_at: session.expires_at || Math.floor(Date.now() / 1000) + 3600,
+    plan: 'free',
     user: {
       id: user.id,
       email: user.email || '',

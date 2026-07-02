@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lovable Voice Helper</title>
+  <title>VibeBhasha</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
@@ -15,7 +15,7 @@
           <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
           <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
         </svg>
-        <span>Lovable Voice Helper</span>
+        <span>VibeBhasha</span>
       </div>
     </header>
 
@@ -25,11 +25,96 @@
       <span>Loading...</span>
     </div>
 
-    <!-- Login State (Not Authenticated) -->
+    <!-- Onboarding Carousel (shown once for new users) -->
+    <div id="onboarding-state" class="state-container hidden">
+      <div class="onboarding-carousel">
+        <div class="onboarding-slides">
+          <!-- Slide 1 -->
+          <div class="onboarding-slide active" data-slide="0">
+            <div class="slide-icon slide-icon-mic">
+              <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor">
+                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+              </svg>
+            </div>
+            <h2>Speak in Your Language</h2>
+            <p>Record prompts in any of <strong>18+ languages</strong> — Hindi, Spanish, German, Mandarin, and more</p>
+          </div>
+
+          <!-- Slide 2 -->
+          <div class="onboarding-slide" data-slide="1">
+            <div class="slide-icon slide-icon-translate">
+              <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 8l4 4-4 4"/>
+                <path d="M19 8l-4 4 4 4"/>
+                <line x1="12" y1="2" x2="12" y2="22"/>
+              </svg>
+            </div>
+            <h2>AI Translates & Enhances</h2>
+            <div class="slide-example">
+              <div class="example-before">
+                <span class="example-label">You say (Hindi):</span>
+                <span>"ek login page banao"</span>
+              </div>
+              <div class="example-arrow">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+              </div>
+              <div class="example-after">
+                <span class="example-label">Lovable gets:</span>
+                <span>"Create a login page with email and password fields, using shadcn/ui components..."</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Slide 3 -->
+          <div class="onboarding-slide" data-slide="2">
+            <div class="slide-icon slide-icon-pro">
+              <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2L15 8L22 9L17 14L18 21L12 18L6 21L7 14L2 9L9 8L12 2Z"/>
+              </svg>
+            </div>
+            <h2>5 Free Prompts to Start</h2>
+            <p>Try it free with 5 prompts. <strong>Go Pro for unlimited</strong> prompts, no watermarks, and priority speed.</p>
+            <div class="pro-badge-preview">
+              <span class="pro-badge-icon">PRO</span>
+              <span>$4.99/month — unlimited everything</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dots -->
+        <div class="onboarding-dots">
+          <span class="dot active" data-dot="0"></span>
+          <span class="dot" data-dot="1"></span>
+          <span class="dot" data-dot="2"></span>
+        </div>
+
+        <!-- Navigation -->
+        <div class="onboarding-nav">
+          <button id="onboarding-prev" class="onboarding-nav-btn hidden">Back</button>
+          <button id="onboarding-next" class="onboarding-nav-btn onboarding-nav-primary">Next</button>
+        </div>
+
+        <!-- Sign in CTA (shown on last slide) -->
+        <div id="onboarding-signin" class="onboarding-signin hidden">
+          <button id="onboarding-google-btn" class="google-signin-btn">
+            <svg viewBox="0 0 24 24" width="20" height="20">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+            <span>Sign in to get 5 free prompts</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Login State (Not Authenticated — returning user) -->
     <div id="login-state" class="state-container hidden">
       <div class="welcome-message">
-        <h2>Welcome!</h2>
-        <p>Sign in to start using voice input with Lovable.dev</p>
+        <h2>Welcome Back!</h2>
+        <p>Sign in to continue using voice input with Lovable.dev</p>
       </div>
 
       <div class="features-list">
@@ -78,38 +163,49 @@
           <span id="user-name" class="user-name"></span>
           <span id="user-email" class="user-email"></span>
         </div>
+        <span id="plan-badge" class="plan-badge hidden">PRO</span>
       </div>
 
       <!-- Usage Stats -->
       <div class="usage-section">
         <h3>Today's Usage</h3>
-        <div class="usage-bar-container">
-          <div class="usage-bar">
-            <div id="usage-progress" class="usage-progress" style="width: 0%"></div>
+        <div class="usage-ring-container">
+          <svg class="usage-ring" viewBox="0 0 36 36">
+            <path class="usage-ring-bg"
+              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              fill="none" stroke="#e2e8f0" stroke-width="3" />
+            <path id="usage-ring-fill" class="usage-ring-fill"
+              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              fill="none" stroke="#7c3aed" stroke-width="3" stroke-dasharray="0, 100" />
+          </svg>
+          <div class="usage-ring-text">
+            <span id="usage-count" class="usage-count">0</span>
+            <span class="usage-total">/ <span id="usage-limit">5</span></span>
           </div>
-          <span id="usage-text" class="usage-text">0 / 5 prompts</span>
         </div>
-        <p class="usage-note">Resets at midnight UTC</p>
+        <span id="usage-text" class="usage-text">0 / 5 prompts used</span>
+        <p class="usage-note">Go Pro for unlimited prompts</p>
       </div>
 
       <!-- Quick Actions -->
       <div class="quick-actions">
         <div class="action-item">
           <span class="action-label">Keyboard Shortcut</span>
-          <span class="action-value" id="shortcut-display">Ctrl+Shift+I</span>
+          <span class="action-value" id="shortcut-display">Alt+V</span>
         </div>
         <div class="action-item">
           <span class="action-label">Preferred Language</span>
-          <select id="language-select" class="language-select">
-            <!-- Populated by JavaScript -->
-          </select>
+          <select id="language-select" class="language-select"></select>
         </div>
       </div>
 
-      <!-- Upgrade Banner (Free Tier) -->
+      <!-- Go Pro Banner (Free Tier) -->
       <div id="upgrade-banner" class="upgrade-banner hidden">
-        <span>Upgrade to Pro for unlimited prompts</span>
-        <button id="upgrade-btn" class="upgrade-btn">Upgrade</button>
+        <div class="upgrade-banner-content">
+          <span class="upgrade-banner-text">Go Pro for unlimited prompts</span>
+          <span class="upgrade-banner-price">$4.99/mo</span>
+        </div>
+        <button id="upgrade-btn" class="upgrade-btn">Go Pro</button>
       </div>
 
       <!-- Footer Actions -->
